@@ -14,9 +14,24 @@ Shader "Unlit/MyFirstShader"
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags { "RenderType" = "opaque" 
+                "Queue"     = "Transparent" 
+            }
         Pass
         {
+            Cull Back
+            Zwrite Off
+            ZTest LEqual
+            /*
+            Blend SrcAlpha OneMinusSrcAlpha // Traditional transparency
+            Blend One OneMinusSrcAlpha // Premultiplied transparency
+            Blend One One // Additive
+            Blend OneMinusDstColor One // Soft additive
+            Blend DstColor Zero // Multiplicative
+            Blend DstColor SrcColor // 2x multiplicative */
+
+            Blend One One 
+            
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
