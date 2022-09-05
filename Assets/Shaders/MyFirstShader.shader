@@ -14,7 +14,7 @@ Shader "Unlit/MyFirstShader"
     }
     SubShader
     {
-        Tags { "RenderType" = "opaque" 
+        Tags { "RenderType" = "Transparent" 
                 "Queue"     = "Transparent" 
             }
         Pass
