@@ -6,9 +6,12 @@ Shader "Custom/Gerstner"
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
         _Glossiness ("Smoothness", Range(0,1)) = 0.5
         _Metallic ("Metallic", Range(0,1)) = 0.0
-        _Amplitude ("Amplitude", Float) = 1
-        _Wavelength ("Wavelength", Float) = 10
-        _Speed("Speed", Float) = 1
+        //_Steepness ("Steepness", Range(0,1)) = 0.5
+        //_Wavelength ("Wavelength", Float) = 10
+        //_Direction ("Direction (2D)", Vector) = (1,0,0,0)
+        _WaveA ("Wave A(dir, steepness, wavelength)", Vector) = (1,0,0.5,10)
+        _WaveB ("Wave B(dir, steepness, wavelength)", Vector) = (0,1,0.25,20)
+        _WaveC ("Wave B(dir, steepness, wavelength)", Vector) = (1,1,0.15,10)
     }
     SubShader
     {
@@ -16,7 +19,7 @@ Shader "Custom/Gerstner"
         LOD 200
 
         CGPROGRAM
-        #pragma surface surf Standard fullforwardshadows vertex:vert
+        #pragma surface surf Standard fullforwardshadows vertex:vert addshadow
         #pragma target 3.0
         sampler2D _MainTex;
         struct Input
@@ -26,16 +29,59 @@ Shader "Custom/Gerstner"
         half _Glossiness;
         half _Metallic;
         fixed4 _Color;
-        float _Amplitude, _Wavelength, _Speed;
+        float4 _WaveA, _WaveB, _WaveC;
+        //float _Wavelength, _Steepness;
+       // float2 _Direction;
         UNITY_INSTANCING_BUFFER_START(Props)
         UNITY_INSTANCING_BUFFER_END(Props)
 
+        //_WaveA ("Wave A(dir, steepness, wavelength)", Vector) = (1,0,0.5,10)
+        //_WaveB ("Wave B(dir, steepness, wavelength)", Vector) = (0,1,0.25,20)
+        //_WaveC ("Wave B(dir, steepness, wavelength)", Vector) = (1,1,0.15,10)
+        float3 GerstnerWave(float4 wave, float3 pnt, inout float3 tangent, inout float3 binormal)
+        {
+            float steepness = wave.z;
+            float wavelength = wave.w;
+            float k = UNITY_TWO_PI / wavelength;
+            float c = sqrt(9.8/k);
+            float2 direction = normalize(wave.xy);
+            float f = k * (dot(direction, pnt.xz) - c * _Time.y);
+            float amplitude = steepness / k;
+            //p.x += direction.x * (amplitude * cos(f));
+            //p.y = amplitude * sin(f);
+            //p.z += direction.y * (amplitude * cos(f));
+            tangent += float3(
+                             -direction.x * direction.x * (steepness * sin(f)),
+                            direction.x                 * (steepness * cos(f)),
+                            -direction.x * direction.y  * (steepness * sin(f) )
+                            );
+            binormal += float3(
+                            -direction.x * direction.y  * (steepness * sin(f)),
+                            direction.y                 * (steepness * cos(f)),
+                            -direction.y * direction.y * (steepness * sin(f))
+                            );
+            return float3(
+                direction.x * (amplitude * cos(f)),
+                amplitude   * sin(f),
+                direction.y * (amplitude * cos(f))
+            );
+        }
+
+        //_WaveA ("Wave A(dir, steepness, wavelength)", Vector) = (1,0,0.5,10)
+        //_WaveB ("Wave B(dir, steepness, wavelength)", Vector) = (0,1,0.25,20)
+        //_WaveC ("Wave B(dir, steepness, wavelength)", Vector) = (1,1,0.15,10)
         void vert(inout appdata_full vertexData)
         {
-            float3 p = vertexData.vertex.xyz;
-            float k = UNITY_TWO_PI / _Wavelength;
-            p.y = _Amplitude * sin(k * (p.x - _Speed * _Time.y));
+            float3 gridPoint = vertexData.vertex.xyz;
+            float3 tangent = float3(1,0,0);
+            float3 binormal = float3(0,0,1);
+            float3 p = gridPoint;
+            p+= GerstnerWave(_WaveA, gridPoint, tangent, binormal);
+            p+= GerstnerWave(_WaveB, gridPoint, tangent, binormal);
+            p+= GerstnerWave(_WaveC, gridPoint, tangent, binormal);
+            float3 normal = normalize(cross(binormal, tangent));
             vertexData.vertex.xyz = p;
+            vertexData.normal = normal;
         }
         
         void surf (Input IN, inout SurfaceOutputStandard o)
