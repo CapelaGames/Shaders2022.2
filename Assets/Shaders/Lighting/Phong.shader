@@ -18,6 +18,8 @@ Shader "Unlit/Phong"
             #include "Lighting.cginc"
             //#include "AutoLight.cginc"
 
+           
+            
             struct appdata
             {
                 float4 vertex : POSITION;

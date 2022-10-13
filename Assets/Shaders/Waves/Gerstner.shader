@@ -6,6 +6,11 @@ Shader "Custom/Gerstner"
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
         _Glossiness ("Smoothness", Range(0,1)) = 0.5
         _Metallic ("Metallic", Range(0,1)) = 0.0
+        
+        _WaterFogColor("Water Fog Color",Color) = (0,0,0,0)
+        _WaterFogDensity("Water Fog Density", Range(0,1)) = 0.5
+        _RefractionStrength("Refraction Strength", Range(0,1)) = 0.25
+        
         //_Steepness ("Steepness", Range(0,1)) = 0.5
         //_Wavelength ("Wavelength", Float) = 10
         //_Direction ("Direction (2D)", Vector) = (1,0,0,0)
@@ -15,16 +20,22 @@ Shader "Custom/Gerstner"
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags { "RenderType"="Transparent" "Queue" = "Transparent" }
         LOD 200
 
+        GrabPass {"_WaterBackground"}
+        
         CGPROGRAM
-        #pragma surface surf Standard fullforwardshadows vertex:vert addshadow
+        #pragma surface surf Standard alpha vertex:vert finalcolor:ResetAlpha
         #pragma target 3.0
+
+        #include "LookingThroughWater.cginc"
+        
         sampler2D _MainTex;
         struct Input
         {
             float2 uv_MainTex;
+            float4 screenPos;
         };
         half _Glossiness;
         half _Metallic;
@@ -34,6 +45,11 @@ Shader "Custom/Gerstner"
        // float2 _Direction;
         UNITY_INSTANCING_BUFFER_START(Props)
         UNITY_INSTANCING_BUFFER_END(Props)
+
+        void ResetAlpha(Input IN, SurfaceOutputStandard o, inout fixed4 color )
+        {
+            color.a = 1;
+        }
 
         //_WaveA ("Wave A(dir, steepness, wavelength)", Vector) = (1,0,0.5,10)
         //_WaveB ("Wave B(dir, steepness, wavelength)", Vector) = (0,1,0.25,20)
@@ -88,13 +104,17 @@ Shader "Custom/Gerstner"
         {
             // Albedo comes from a texture tinted by color
             fixed4 c = tex2D (_MainTex, IN.uv_MainTex) * _Color;
-            o.Albedo = c.rgb;
+            
             // Metallic and smoothness come from slider variables
+            o.Albedo = c.rgb;
             o.Metallic = _Metallic;
             o.Smoothness = _Glossiness;
             o.Alpha = c.a;
+            
+            o.Emission = ColorBelowWater(IN.screenPos, o.Normal) * (1 -  c.a * (1 - length(_LightColor0)));
+            
+            
         }
         ENDCG
     }
-    FallBack "Diffuse"
 }
